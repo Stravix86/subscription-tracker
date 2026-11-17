@@ -362,6 +362,7 @@
     return lines.map(fold).join('\r\n') + '\r\n';
   }
   function download(text, filename, type) {
+    if (window.NativeApp?.saveFile) return window.NativeApp.saveFile(filename, type, text); // Android app
     const url = URL.createObjectURL(new Blob([text], { type }));
     const a = h('a', { href: url, download: filename });
     document.body.append(a);
@@ -435,7 +436,7 @@
   const canNotify = 'Notification' in window;
   function updateNotifyBtn() {
     const b = $('#notifyBtn');
-    if (!canNotify) { b.textContent = 'Notifications not supported here'; b.disabled = true; return; }
+    if (!canNotify) { b.hidden = true; return; } // e.g. inside the Android app: calendar reminders cover it
     const on = settings.notify && Notification.permission === 'granted';
     b.textContent = on ? 'Browser notifications: on' : Notification.permission === 'denied'
       ? 'Notifications blocked in browser settings' : 'Enable browser notifications';

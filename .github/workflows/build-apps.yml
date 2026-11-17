@@ -1,0 +1,75 @@
+# Builds the Windows exe and Android apk. Push a tag like v1.0.0 to publish them as a GitHub Release.
+name: Build apps
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: native/desktop
+      - run: node native/stage-web.mjs
+      - run: npx --yes @tauri-apps/cli@2 build --no-bundle
+        working-directory: native/desktop
+      - run: Copy-Item native/desktop/target/release/subscription-tracker.exe SubscriptionTracker-windows.exe
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: SubscriptionTracker-windows.exe
+
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - run: node native/stage-web.mjs
+      - name: Build signed APK
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.p12"
+          export KEYSTORE_PATH="$RUNNER_TEMP/release.p12" KEY_ALIAS=release KEY_PASSWORD="$KEYSTORE_PASSWORD"
+          export VERSION_CODE="${{ github.run_number }}"
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then export VERSION_NAME="${GITHUB_REF_NAME#v}"; else export VERSION_NAME="0.0.${{ github.run_number }}"; fi
+          gradle -p native/android assembleRelease --no-daemon
+          cp native/android/app/build/outputs/apk/release/app-release.apk SubscriptionTracker-android.apk
+          rm -f "$RUNNER_TEMP/release.p12"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android
+          path: SubscriptionTracker-android.apk
+
+  release:
+    needs: [windows, android]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" SubscriptionTracker-windows.exe SubscriptionTracker-android.apk \
+            -R "$GITHUB_REPOSITORY" --title "Subscription Tracker $GITHUB_REF_NAME" --generate-notes

@@ -8,6 +8,16 @@ Free trials quietly turn into paid plans. Yearly renewals show up out of nowhere
 
 ![Subscription Tracker dashboard](docs/screenshot.jpg)
 
+## Download
+
+| Platform | Download | Notes |
+|----------|----------|-------|
+| Web (any device) | [Open the app](https://stravix86.github.io/subscription-tracker/) | Use your browser's **Install app** / **Add to Home screen** to get an app icon. |
+| Windows 10/11 | [SubscriptionTracker-windows.exe](https://github.com/Stravix86/subscription-tracker/releases/latest/download/SubscriptionTracker-windows.exe) | Portable, about 3 MB, nothing to install. Windows may say "Windows protected your PC" because the exe isn't code-signed: click **More info → Run anyway**. |
+| Android 7+ | [SubscriptionTracker-android.apk](https://github.com/Stravix86/subscription-tracker/releases/latest/download/SubscriptionTracker-android.apk) | Allow your browser to "install unknown apps" when asked. Calendar reminders work; browser notifications don't exist inside the app. |
+
+Each app keeps its own data. To move your list between them, use **Export JSON** in one and **Import JSON** in the other.
+
 ## Features
 
 - **Track every subscription:** name, price, currency, billing cycle (weekly, monthly, yearly, or every N days), next renewal date, category, and an optional free-trial end date.
@@ -62,9 +72,28 @@ app.js                all app logic
 sw.js                 service worker (offline cache)
 manifest.webmanifest  PWA manifest
 icons/                app icons
+native/desktop/       Windows wrapper (Tauri, uses the built-in WebView2)
+native/android/       Android wrapper (a small WebView app)
+.github/workflows/    builds the exe and apk
 ```
 
-When you change any file, bump `CACHE` in `sw.js` (for example `subtrack-v2`) so installed copies pick up the new version.
+When you change any file, bump `CACHE` in `sw.js` (for example `subtrack-v3`) so installed copies pick up the new version.
+
+## Building the Windows and Android apps
+
+The web files stay the single source of truth; the native apps just bundle them. Push a version tag and GitHub Actions builds both and attaches them to a Release:
+
+```bash
+git tag v1.0.1
+```
+
+```bash
+git push origin v1.0.1
+```
+
+The apk is signed with a key stored in the repo secrets `ANDROID_KEYSTORE_BASE64` and `ANDROID_KEYSTORE_PASSWORD`, so new versions install over old ones without losing data.
+
+To build the exe yourself you need Rust and Node: run `node native/stage-web.mjs`, then `npx @tauri-apps/cli@2 build --no-bundle` inside `native/desktop`.
 
 ## License
 
