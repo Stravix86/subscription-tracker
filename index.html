@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Subscription Tracker</title>
+<meta name="description" content="Track subscriptions and free trials, see what you spend, and get reminded before renewals. Runs entirely in your browser.">
+<meta name="theme-color" content="#4f46e5">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="style.css">
+<script>try{var t=JSON.parse(localStorage.getItem('subtrack.settings')||'{}').theme;if(t&&t!=='auto')document.documentElement.dataset.theme=t}catch(e){}</script>
+<script src="app.js" defer></script>
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <img src="icons/icon.svg" alt="" width="32" height="32">
+    <h1>Subscription Tracker</h1>
+  </div>
+  <div class="top-actions">
+    <button type="button" id="themeBtn" class="ghost icon" aria-label="Theme: auto" title="Theme: auto"></button>
+    <button type="button" id="addBtn" class="primary">+ Add</button>
+  </div>
+</header>
+
+<main>
+  <section class="stats" aria-label="Spending summary">
+    <div class="stat"><span class="label">Monthly</span><span class="value" id="statMonthly">–</span></div>
+    <div class="stat"><span class="label">Yearly</span><span class="value" id="statYearly">–</span></div>
+    <div class="stat"><span class="label">Due next 30 days</span><span class="value" id="statSoon">–</span></div>
+    <div class="stat save"><span class="label">You could save / year</span><span class="value" id="statSave">–</span><span class="hint" id="statSaveHint"></span></div>
+  </section>
+
+  <section class="card">
+    <div class="card-head">
+      <h2>Upcoming renewals</h2>
+      <span class="count" id="count"></span>
+    </div>
+    <ul class="list" id="list"></ul>
+    <div class="empty" id="empty" hidden>
+      <p><strong>No subscriptions yet.</strong></p>
+      <p>Add the services you pay for, including free trials, and you'll see what they cost and what's renewing next.</p>
+      <button type="button" class="primary" data-action="add">+ Add your first subscription</button>
+    </div>
+  </section>
+
+  <section class="card tools" aria-label="Reminders and backup">
+    <div class="tool-group">
+      <h2>Reminders</h2>
+      <p class="muted">Calendar alerts work even when this page is closed.</p>
+      <div class="row">
+        <label class="inline">Remind me
+          <select id="leadDays">
+            <option value="1">1 day</option><option value="2">2 days</option><option value="3">3 days</option>
+            <option value="5">5 days</option><option value="7">7 days</option><option value="14">14 days</option>
+          </select>
+          before
+        </label>
+      </div>
+      <div class="row">
+        <button type="button" id="icsAllBtn">Add all to calendar (.ics)</button>
+        <button type="button" id="notifyBtn">Enable browser notifications</button>
+      </div>
+    </div>
+    <div class="tool-group">
+      <h2>Backup</h2>
+      <p class="muted">Your data stays in this browser. Export it to keep a copy or move devices.</p>
+      <div class="row">
+        <button type="button" id="exportBtn">Export JSON</button>
+        <button type="button" id="importBtn">Import JSON</button>
+        <input type="file" id="importFile" accept="application/json,.json" hidden>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="foot">
+  <a href="https://github.com/Stravix86/subscription-tracker">Source on GitHub</a> · No accounts, no tracking, works offline.
+</footer>
+
+<dialog id="dlg" aria-labelledby="dlgTitle">
+  <form id="form" novalidate>
+    <h2 id="dlgTitle">Add subscription</h2>
+    <label>Name
+      <input name="name" required maxlength="80" placeholder="Netflix, Spotify, gym…" autocomplete="off">
+    </label>
+    <div class="grid2">
+      <label>Price
+        <input name="price" type="number" inputmode="decimal" min="0" step="0.01" required placeholder="9.99">
+      </label>
+      <label>Currency
+        <input name="currency" list="currencies" required maxlength="3" pattern="[A-Za-z]{3}" autocomplete="off" class="upper">
+      </label>
+    </div>
+    <div class="grid2">
+      <label>Billing cycle
+        <select name="cycle">
+          <option value="weekly">Weekly</option>
+          <option value="monthly" selected>Monthly</option>
+          <option value="yearly">Yearly</option>
+          <option value="custom">Every N days</option>
+        </select>
+      </label>
+      <label id="daysWrap" hidden>Every (days)
+        <input name="days" type="number" min="1" max="3650" step="1" value="30">
+      </label>
+    </div>
+    <div class="grid2">
+      <label>Next renewal
+        <input name="next" type="date" required>
+      </label>
+      <label>Free trial ends <span class="opt">(optional)</span>
+        <input name="trial" type="date">
+      </label>
+    </div>
+    <label>Category <span class="opt">(optional)</span>
+      <input name="category" list="categories" maxlength="40" autocomplete="off" placeholder="Streaming, Software, Fitness…">
+    </label>
+    <label class="check">
+      <input name="unused" type="checkbox"> I'm not really using this
+    </label>
+    <p class="form-error" id="formError" role="alert"></p>
+    <div class="dlg-actions">
+      <button type="button" id="deleteBtn" class="danger" hidden>Delete</button>
+      <span class="spacer"></span>
+      <button type="button" id="cancelBtn">Cancel</button>
+      <button type="submit" class="primary">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<datalist id="currencies">
+  <option value="USD"><option value="EUR"><option value="GBP"><option value="NGN"><option value="CAD"><option value="AUD">
+  <option value="INR"><option value="JPY"><option value="ZAR"><option value="KES"><option value="GHS"><option value="BRL">
+  <option value="CHF"><option value="SEK"><option value="NZD"><option value="SGD"><option value="AED"><option value="MXN">
+</datalist>
+<datalist id="categories"></datalist>
+
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+</body>
+</html>
